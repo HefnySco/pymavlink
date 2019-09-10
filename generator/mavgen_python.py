@@ -212,7 +212,11 @@ class MAVLink_message(object):
         if WIRE_PROTOCOL_VERSION != '1.0' and not force_mavlink1:
             # in MAVLink2 we can strip trailing zeros off payloads. This allows for simple
             # variable length arrays and smaller packets
-            while plen > 1 and payload[plen-1] == chr(0):
+            nullbyte = chr(0)
+            # in Python2, type("fred') is str but also type("fred")==bytes
+            if str(type(payload)) == "<class 'bytes'>":
+                nullbyte = 0
+            while plen > 1 and payload[plen-1] == nullbyte:
                 plen -= 1
         self._payload = payload[:plen]
         incompat_flags = 0
@@ -677,8 +681,13 @@ class MAVLink(object):
             h = hashlib.new('sha256')
             h.update(self.signing.secret_key)
             h.update(msgbuf[:-6])
-            sig1 = str(h.digest())[:6]
-            sig2 = str(msgbuf)[-6:]
+            if str(type(msgbuf)) == "<class 'bytes'>":
+                # Python 3
+                sig1 = h.digest()[:6]
+                sig2 = msgbuf[-6:]
+            else:
+                sig1 = str(h.digest())[:6]
+                sig2 = str(msgbuf)[-6:]
             if sig1 != sig2:
                 # print('sig mismatch')
                 return False
